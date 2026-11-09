@@ -41,3 +41,6 @@ Un hosting exclusivamente estático no funciona: el servidor Node.js debe perman
 
 ## Limitaciones de esta versión
 Las salas viven en memoria del proceso: si el servidor se reinicia, las salas se cierran. No hay todavía cuentas, persistencia, chat visible dentro del juego, moderación, protección anti-trampas ni escalado entre múltiples instancias. La lista de salas públicas y el emparejamiento funcionan en una sola instancia Node.js.
+
+
+Actualización: modo de cámara en primera persona, controles táctiles para mirar en móvil, mapa 2000×2000, bosque amplio y 120 estructuras generadas de forma determinista (cabañas, torres, ruinas y campamentos). Los límites del servidor y los recursos también se ampliaron para coincidir con el nuevo mapa.

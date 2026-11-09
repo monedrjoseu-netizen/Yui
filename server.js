@@ -6,11 +6,8 @@ const WebSocket = require("ws");
 const ROOT = __dirname;
 const PORT = process.env.PORT || 3000;
 const MAX_PLAYERS = 12;
-const RESOURCE_SEED = [
-  {id:"wood-a",type:"wood",x:8,z:4},{id:"wood-b",type:"wood",x:-9,z:7},
-  {id:"wood-c",type:"wood",x:3,z:-12},{id:"wood-d",type:"wood",x:15,z:-8},
-  {id:"wood-e",type:"wood",x:-16,z:-10},{id:"wood-f",type:"wood",x:-3,z:16}
-];
+let seed=99199;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
+const RESOURCE_SEED=Array.from({length:260},(_,i)=>({id:"wood-"+i,type:"wood",x:(rand()-.5)*1800,z:(rand()-.5)*1800}));
 const rooms = new Map();
 const clients = new Map();
 
@@ -102,7 +99,7 @@ wss.on("connection",ws=>{
     const p=room.players.get(ws.playerId);
     if(!p)return;
     if(m.type==="move"&&Number.isFinite(m.x)&&Number.isFinite(m.z)){
-      p.x=Math.max(-28,Math.min(28,m.x));p.z=Math.max(-28,Math.min(28,m.z));
+      p.x=Math.max(-980,Math.min(980,m.x));p.z=Math.max(-980,Math.min(980,m.z));
       p.rot=Number.isFinite(m.rot)?m.rot:0;
       if(typeof m.name==="string")p.name=m.name.slice(0,16);
       broadcast(room,{type:"playerMoved",player:p});
