@@ -1,0 +1,8 @@
+{
+  "name": "bosque-99",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prototipo multijugador de supervivencia 3D estilo PSX",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "ws": "^8.18.0" }
+}

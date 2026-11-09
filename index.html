@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>BOSQUE 99 — Supervivencia</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+*{box-sizing:border-box}body{margin:0;background:#080d0b;color:#f4edcf;font-family:'VT323',monospace;overflow:hidden}
+#game{position:fixed;inset:0}canvas{display:block;image-rendering:pixelated}
+.panel{position:fixed;background:#101812dc;border:2px solid #9eaa79;box-shadow:4px 4px 0 #050806;padding:10px;z-index:3}
+#hud{top:12px;left:12px;min-width:220px;font-size:21px;line-height:1.3}
+#brand{font:10px 'Press Start 2P';color:#e7d99c;margin-bottom:9px}
+#status{right:12px;top:12px;font-size:21px;text-align:right}
+#hint{left:50%;bottom:18px;transform:translateX(-50%);font-size:22px;white-space:nowrap;text-align:center}
+#center{position:fixed;inset:0;display:grid;place-items:center;background:#080d0beF;z-index:10}
+.card{width:min(520px,92vw);padding:24px;background:#17231b;border:3px solid #a9b783;box-shadow:8px 8px #050806;text-align:center}
+h1{font:clamp(19px,4vw,28px) 'Press Start 2P';line-height:1.6;color:#e8dba5}
+p{font-size:24px;line-height:1.2}.btn{font:12px 'Press Start 2P';padding:15px 18px;background:#c5a85d;color:#17150d;border:0;cursor:pointer;box-shadow:4px 4px #060806}
+.btn:hover{background:#e3c978}input{font:22px 'VT323';padding:8px;width:180px;background:#09100b;color:#fff;border:1px solid #a9b783}
+#mobile{position:fixed;bottom:70px;right:16px;z-index:4;display:none;gap:8px}
+#mobile button{width:54px;height:54px;background:#17231bcc;color:white;border:2px solid #b3bd8b;font-size:23px}
+#cross{position:fixed;left:50%;top:50%;width:8px;height:8px;border:1px solid #eee;transform:translate(-50%,-50%);opacity:.65;pointer-events:none}
+.small{font-size:17px;color:#c7c5a9}
+.room-controls{display:grid;gap:9px;margin:14px auto;max-width:360px}.room-controls input{width:100%;min-width:0}.room-row{display:flex;gap:8px}.room-row>*{flex:1;min-width:0}.room-btn{font:10px "Press Start 2P";padding:12px 8px;background:#71865b;color:#fff;border:1px solid #c5d09d;cursor:pointer}.room-list{max-height:130px;overflow:auto;text-align:left;background:#0b130e;padding:7px;margin-top:8px}.room-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px;border-bottom:1px solid #53634a;font-size:18px}.room-item button{font:10px "Press Start 2P";padding:8px;background:#c5a85d;border:0}
+@media(max-width:700px){#mobile{display:grid;grid-template-columns:repeat(3,54px)}#hint{font-size:18px;bottom:8px}#hud{font-size:18px;min-width:175px}#brand{font-size:8px}}
+</style>
+</head>
+<body>
+<div id="game"></div><div id="cross"></div>
+<div id="hud" class="panel"><div id="brand">BOSQUE 99</div><div>🌙 Noche: <span id="night">1</span></div><div>🪵 Madera: <span id="wood">0</span></div><div>🔥 Fogata: <span id="fuel">100</span>%</div><div>♥ Energía: <span id="health">100</span></div></div>
+<div id="status" class="panel">Conectando...<br><span id="players">0 jugadores</span></div>
+<div id="hint" class="panel">WASD mover · Mouse mirar · E recoger · F alimentar fogata</div>
+<div id="mobile"><button data-key="w">▲</button><button data-key="e">E</button><button data-key="f">🔥</button><button data-key="a">◀</button><button data-key="s">▼</button><button data-key="d">▶</button></div>
+<div id="center"><div class="card"><h1>BOSQUE 99</h1><p>Sobrevive junto a jugadores de todo el mundo.</p><p class="small">MULTIJUGADOR GLOBAL · 3D RETRO</p>
+<input id="name" maxlength="16" placeholder="Tu nombre" value="Explorador">
+<div class="room-controls">
+  <input id="roomName" maxlength="24" placeholder="Nombre de tu sala" value="Mi bosque">
+  <div class="room-row"><button class="room-btn" id="createPublic">CREAR PÚBLICA</button><button class="room-btn" id="createPrivate">CREAR PRIVADA</button></div>
+  <div class="room-row"><input id="roomCode" maxlength="5" placeholder="CÓDIGO"><button class="room-btn" id="joinCode">UNIRSE</button></div>
+  <div style="font-size:19px;text-align:left">🌍 SALAS PÚBLICAS <button class="room-btn" id="refreshRooms">↻</button></div>
+  <div id="roomList" class="room-list">Conectando al servidor...</div>
+</div>
+<p class="small" id="lobbyMessage">Elige una sala o crea la tuya. Máximo 12 jugadores por sala.</p>
+</div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x829078); scene.fog=new THREE.Fog(0x829078,16,52);
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,100); camera.position.set(0,1.65,5);
+const renderer=new THREE.WebGLRenderer({antialias:false}); renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(0.65); renderer.shadowMap.enabled=false; document.querySelector('#game').appendChild(renderer.domElement);
+const hemi=new THREE.HemisphereLight(0xbac7a0,0x263322,1.3);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffd9a0,1.1);sun.position.set(-8,15,5);scene.add(sun);
+const mat=(c)=>new THREE.MeshLambertMaterial({color:c,flatShading:true});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),mat(0x334b32));ground.rotation.x=-Math.PI/2;ground.position.y=-.04;scene.add(ground);
+const grid=new THREE.GridHelper(100,50,0x40563a,0x40563a);grid.position.y=.005;scene.add(grid);
+function tree(x,z,s=1){let trunk=new THREE.Mesh(new THREE.BoxGeometry(.55*s,2.2*s,.55*s),mat(0x59402b));trunk.position.set(x,1.1*s,z);scene.add(trunk);for(let i=0;i<3;i++){let crown=new THREE.Mesh(new THREE.ConeGeometry(1.45*s-i*.18,2.0*s,5),mat(i===0?0x28432e:0x355638));crown.position.set(x,(2.1+i*.65)*s,z);scene.add(crown)}}
+for(let i=0;i<100;i++){let a=i*2.399,r=12+(i%7)*4;tree(Math.cos(a)*r,Math.sin(a)*r,.75+(i%4)*.12)}
+// campfire
+const fire=new THREE.Group();fire.position.set(0,0,-2);scene.add(fire);
+for(let i=0;i<3;i++){let log=new THREE.Mesh(new THREE.BoxGeometry(1.2,.22,.24),mat(0x65432c));log.rotation.y=i*Math.PI/3;log.position.y=.13;fire.add(log)}
+const flame=new THREE.Mesh(new THREE.ConeGeometry(.38,1.15,5),new THREE.MeshBasicMaterial({color:0xff8a24}));flame.position.y=.8;fire.add(flame);
+const glow=new THREE.PointLight(0xff8b32,2,12);glow.position.set(0,1,-2);scene.add(glow);
+const resources=new Map(), others=new Map();
+function makeWood(id,x,z){const g=new THREE.Group();let stump=new THREE.Mesh(new THREE.CylinderGeometry(.28,.35,.65,5),mat(0x9a7142));stump.position.y=.32;g.add(stump);let cap=new THREE.Mesh(new THREE.ConeGeometry(.55,.75,5),mat(0x597243));cap.position.y=.95;g.add(cap);g.position.set(x,0,z);scene.add(g);resources.set(id,g)}
+function makePlayer(p){let g=new THREE.Group();let body=new THREE.Mesh(new THREE.BoxGeometry(.55,1.1,.35),mat(p.color||0x6d9fbd));body.position.y=.75;g.add(body);let head=new THREE.Mesh(new THREE.BoxGeometry(.42,.42,.42),mat(0xd4b58b));head.position.y=1.55;g.add(head);g.position.set(p.x,0,p.z);scene.add(g);others.set(p.id,g)}
+let ws, myId=null, online=false, keys={},yaw=0,pitch=0,wood=0,fuel=100,health=100,night=1,elapsed=0,started=false;
+const send=o=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))};
+let pendingRoom=null;
+function connect(action){
+  pendingRoom=action;
+  let proto=location.protocol==='https:'?'wss':'ws';
+  let url=(location.protocol==='file:'?'ws://localhost:3000':`${proto}://${location.host}`);
+  try{
+    ws=new WebSocket(url);
+    ws.onopen=()=>{
+      online=true;
+      const payload={...pendingRoom,name:document.querySelector('#name').value||'Explorador'};
+      send(payload);
+      document.querySelector('#lobbyMessage').textContent='Conectando a la sala...';
+    };
+    ws.onmessage=e=>{
+      let m=JSON.parse(e.data);
+      if(m.type==='lobby'||m.type==='roomList'){
+        const list=document.querySelector('#roomList');
+        list.innerHTML='';
+        if(!m.rooms.length){list.textContent='No hay salas públicas. ¡Crea la primera!';return;}
+        m.rooms.forEach(r=>{
+          const item=document.createElement('div');item.className='room-item';
+          const label=document.createElement('span');label.textContent=`${r.name} · ${r.players}/${r.maxPlayers}`;
+          const btn=document.createElement('button');btn.textContent='ENTRAR';
+          btn.onclick=()=>enterRoom({type:'joinRoom',code:r.code});
+          item.append(label,btn);list.appendChild(item);
+        });
+      }
+      if(m.type==='roomError'){
+        document.querySelector('#lobbyMessage').textContent=m.message;
+        if(ws){ws.close();ws=null;}online=false;
+      }
+      if(m.type==='welcome'){
+        myId=m.id;
+        document.querySelector('#center').style.display='none';started=true;lock();
+        document.querySelector('#status').innerHTML=`SALA ${m.room.code}<br><span id="players">${m.players.length} jugadores</span>`;
+        document.querySelector('#hint').textContent='WASD mover · Mouse mirar · E recoger · F alimentar fogata';
+        m.players.forEach(p=>{if(p.id!==myId&&!others.has(p.id))makePlayer(p)});
+        m.resources.forEach(r=>{if(!resources.has(r.id))makeWood(r.id,r.x,r.z)});
+      }
+      if(m.type==='players'){
+        m.players.forEach(p=>{if(p.id!==myId&&!others.has(p.id))makePlayer(p)});
+        document.querySelector('#players').textContent=m.players.length+' jugadores';
+      }
+      if(m.type==='playerMoved'){
+        let p=m.player,g=others.get(p.id);
+        if(!g)makePlayer(p);else g.position.set(p.x,0,p.z);
+      }
+      if(m.type==='left'){
+        if(others.has(m.id)){scene.remove(others.get(m.id));others.delete(m.id);}
+        if(m.players)document.querySelector('#players').textContent=m.players.length+' jugadores';
+      }
+      if(m.type==='resourceRemoved'){
+        if(resources.has(m.id)){scene.remove(resources.get(m.id));resources.delete(m.id);}
+      }
+      if(m.type==='chat')console.log(`[${m.player}] ${m.message}`);
+    };
+    ws.onclose=()=>{online=false;if(started)document.querySelector('#status').innerHTML='DESCONECTADO<br><span>Conexión perdida</span>';};
+    ws.onerror=()=>{document.querySelector('#lobbyMessage').textContent='No se pudo conectar. Comprueba que el servidor esté publicado.';};
+  }catch(e){document.querySelector('#lobbyMessage').textContent='No se pudo conectar al servidor.';}
+}
+function enterRoom(action){
+  document.querySelector('#lobbyMessage').textContent='Entrando a la sala...';
+  if(ws&&ws.readyState===WebSocket.OPEN)send({...action,name:document.querySelector('#name').value||'Explorador'});
+  else connect(action);
+}
+document.querySelector('#createPublic').onclick=()=>enterRoom({type:'createRoom',roomName:document.querySelector('#roomName').value,isPublic:true});
+document.querySelector('#createPrivate').onclick=()=>enterRoom({type:'createRoom',roomName:document.querySelector('#roomName').value,isPublic:false});
+document.querySelector('#joinCode').onclick=()=>{
+  const code=document.querySelector('#roomCode').value.trim().toUpperCase();
+  if(code.length!==5){document.querySelector('#lobbyMessage').textContent='Introduce un código de 5 caracteres.';return;}
+  enterRoom({type:'joinRoom',code});
+};
+document.querySelector('#refreshRooms').onclick=()=>{
+  if(ws&&ws.readyState===WebSocket.OPEN)send({type:'listRooms'});
+  else connect({type:'listRooms'});
+};
+function lock(){renderer.domElement.requestPointerLock?.()}
+// El juego comienza al crear o unirse a una sala; no existe un botón #start.
+document.addEventListener('pointerlockchange',()=>{});
+document.addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){yaw-=e.movementX*.002;pitch=Math.max(-1.15,Math.min(1.15,pitch-e.movementY*.002))}});
+document.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.key.toLowerCase()==='e')collect();if(e.key.toLowerCase()==='f')feed()});
+document.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+renderer.domElement.addEventListener('click',()=>{if(started)lock()});
+document.querySelectorAll('#mobile button').forEach(b=>{let k=b.dataset.key;b.addEventListener('touchstart',e=>{e.preventDefault();if(k==='e')collect();else if(k==='f')feed();else keys[k]=true});b.addEventListener('touchend',()=>keys[k]=false)});
+function collect(){let best=null,dist=2.5;for(let [id,g] of resources){let d=g.position.distanceTo(camera.position);if(d<dist){best=id;dist=d}}if(best){scene.remove(resources.get(best));resources.delete(best);wood++;document.querySelector('#wood').textContent=wood;send({type:'collect',id:best})}}
+function feed(){if(wood>0){wood--;fuel=Math.min(100,fuel+25);document.querySelector('#wood').textContent=wood;document.querySelector('#fuel').textContent=Math.round(fuel)}}
+let last=performance.now(),sendTimer=0;
+function animate(now){requestAnimationFrame(animate);let dt=Math.min(.05,(now-last)/1000);last=now;if(started){let forward=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0),side=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);let dir=new THREE.Vector3(side,0,-forward);dir.normalize().applyAxisAngle(new THREE.Vector3(0,1,0),yaw);camera.position.addScaledVector(dir,dt*5);camera.position.x=THREE.MathUtils.clamp(camera.position.x,-29,29);camera.position.z=THREE.MathUtils.clamp(camera.position.z,-29,29);camera.rotation.order='YXZ';camera.rotation.set(pitch,yaw,0);elapsed+=dt;fuel=Math.max(0,fuel-dt*(elapsed%110>65?.28:.08));if(elapsed>110){elapsed=0;night++;document.querySelector('#night').textContent=night}document.querySelector('#fuel').textContent=Math.round(fuel);if(fuel<1){health=Math.max(0,health-dt*2);document.querySelector('#health').textContent=Math.round(health)}let dark=elapsed%110>65;let c=dark?0x101b25:0x829078;scene.background.setHex(c);scene.fog.color.setHex(c);hemi.intensity=dark?.35:1.3;glow.intensity=fuel>0?(dark?3:1.3):0;flame.visible=fuel>0;sendTimer+=dt;if(sendTimer>.12){sendTimer=0;send({type:'move',x:camera.position.x,z:camera.position.z,rot:yaw,name:document.querySelector('#name').value||'Explorador'})}}
+renderer.render(scene,camera)}
+requestAnimationFrame(animate);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+</body></html>
